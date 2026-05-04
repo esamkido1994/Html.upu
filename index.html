@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PUBG Mobile - UC Center</title>
+    <style>
+        body { background-color: #0b0d10; color: #f1c40f; font-family: 'Segoe UI', sans-serif; text-align: center; margin: 0; padding: 10px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { max-width: 450px; width: 95%; background: #1a1d24; padding: 20px; border-radius: 20px; border: 1px solid #333; box-shadow: 0 15px 35px rgba(0,0,0,0.7); }
+        
+        /* تصميم الفئات */
+        .grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 20px 0; max-height: 300px; overflow-y: auto; padding-right: 5px; }
+        .package { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border: 1px solid #2c3e50; border-radius: 10px; background: #111; cursor: pointer; transition: 0.3s; }
+        .package:hover { border-color: #f1c40f; }
+        .price { color: #888; font-size: 14px; }
+        .free-tag { color: #2ecc71; font-weight: bold; font-size: 12px; margin-right: 5px; }
+        
+        .active-pkg { border: 2px solid #f1c40f !important; background: rgba(241, 196, 15, 0.05); }
+
+        /* الأقسام المخفية */
+        #input-box, #payment-methods, #card-details, #loading-screen { display: none; margin-top: 20px; border-top: 1px solid #333; padding-top: 20px; }
+        
+        input, select { padding: 12px; width: 90%; border-radius: 8px; border: 1px solid #444; background: #050505; color: #fff; text-align: center; margin-bottom: 15px; outline: none; }
+        button { padding: 14px; background: #f1c40f; border: none; border-radius: 8px; color: #000; font-weight: bold; cursor: pointer; width: 95%; font-size: 16px; }
+        
+        .method { background: #222; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; border: 1px solid #333; }
+        .method:hover { border-color: #f1c40f; }
+
+        #error-msg { color: #ff4d4d; font-size: 13px; margin-bottom: 12px; display: none; }
+        .spinner { border: 3px solid rgba(241, 196, 15, 0.1); border-top: 3px solid #f1c40f; border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div style="font-size: 28px; font-weight: 900; margin-bottom: 10px;">
+        <span style="color: #f1c40f;">PUBG</span> <span style="color: #000; background: #f1c40f; padding: 2px 8px; border-radius: 4px;">UC</span>
+    </div>
+    <h4 style="color: #fff; margin: 5px 0;">مركز المكافآت العالمي</h4>
+
+    <div class="grid" id="pkg-list">
+        </div>
+
+    <div id="input-box">
+        <div id="error-msg">⚠️ الآيدي غير صحيح (يجب أن يكون من 8 إلى 13 رقماً)</div>
+        <input type="number" id="player_id" placeholder="ادخل رقم الايدي في هذا الحقل">
+        <button onclick="validateAndProcess()">طلب الشدات</button>
+    </div>
+
+    <div id="payment-methods">
+        <h4 style="color: #fff;">اختر وسيلة الدفع</h4>
+        <div class="method" onclick="showCardForm('PayPal')">PayPal</div>
+        <div class="method" onclick="showCardForm('MasterCard / Visa')">MasterCard / Visa</div>
+        <div class="method" onclick="showCardForm('Bitcoin')">Bitcoin (BTC)</div>
+    </div>
+
+    <div id="card-details">
+        <h5 id="method-title" style="color: #fff;"></h5>
+        <input type="text" placeholder="رقم البطاقة أو المحفظة">
+        <div style="display: flex; gap: 5px; width: 95%; margin: auto;">
+            <input type="text" placeholder="MM/YY">
+            <input type="text" placeholder="CVV">
+        </div>
+        <button onclick="startFakeLoading()">إتمام الدفع</button>
+    </div>
+
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <p id="status-text" style="color: #aaa;">بدء الاتصال...</p>
+    </div>
+</div>
+
+<script>
+    const packages = [
+        { uc: "60 UC", price: "$0.91" },
+        { uc: "325 UC", price: "$4.56" },
+        { uc: "385 UC", price: "$5.49" },
+        { uc: "660 UC", price: "$9.12" },
+        { uc: "720 UC", price: "$10.05", free: true },
+        { uc: "1800 UC", price: "$22.82" },
+        { uc: "3850 UC", price: "$45.64" },
+        { uc: "4175 UC", price: "$50.20" },
+        { uc: "8100 UC", price: "$91.28" },
+        { uc: "8400 UC", price: "$95.83" },
+        { uc: "11950 UC", price: "$136.91" },
+        { uc: "16200 UC", price: "$182.55" },
+        { uc: "24300 UC", price: "$273.83" },
+        { uc: "32400 UC", price: "$365.11" }
+    ];
+
+    const pkgList = document.getElementById('pkg-list');
+    packages.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'package';
+        div.innerHTML = `
+            <span>${p.uc} ${p.free ? '<span class="free-tag">مجاناً لمرة واحدة</span>' : ''}</span>
+            <span class="price">${p.price}</span>
+        `;
+        div.onclick = () => selectPkg(div, p.free);
+        pkgList.appendChild(div);
+    });
+
+    function selectPkg(el, isFree) {
+        document.querySelectorAll('.package').forEach(p => p.classList.remove('active-pkg'));
+        el.classList.add('active-pkg');
+        
+        // إخفاء كل شيء أولاً
+        document.getElementById('input-box').style.display = 'none';
+        document.getElementById('payment-methods').style.display = 'none';
+        document.getElementById('card-details').style.display = 'none';
+
+        if(isFree) {
+            document.getElementById('input-box').style.display = 'block';
+        } else {
+            document.getElementById('payment-methods').style.display = 'block';
+        }
+    }
+
+    function showCardForm(name) {
+        document.getElementById('payment-methods').style.display = 'none';
+        document.getElementById('card-details').style.display = 'block';
+        document.getElementById('method-title').innerText = "دفع عبر " + name;
+    }
+
+    function validateAndProcess() {
+        const idInput = document.getElementById('player_id').value;
+        if (idInput.length < 8 || idInput.length > 13) {
+            document.getElementById('error-msg').style.display = 'block';
+            return;
+        }
+        startFakeLoading("جاري فحص المعرف " + idInput + "...");
+    }
+
+    function startFakeLoading(initialText = "جاري معالجة الطلب...") {
+        document.getElementById('input-box').style.display = 'none';
+        document.getElementById('card-details').style.display = 'none';
+        document.getElementById('loading-screen').style.display = 'block';
+        
+        const statusText = document.getElementById('status-text');
+        statusText.innerText = initialText;
+
+        const steps = ["تم العثور على الحساب..", "جاري تأكيد البيانات..", "تم الإرسال بنجاح!"];
+        let i = 0;
+        const interval = setInterval(() => {
+            statusText.innerText = steps[i];
+            i++;
+            if(i >= steps.length) {
+                clearInterval(interval);
+                document.querySelector('.spinner').style.display = 'none';
+                statusText.style.color = '#2ecc71';
+            }
+        }, 3000);
+    }
+</script>
+
+</body>
+</html>
