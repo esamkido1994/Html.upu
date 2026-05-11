@@ -94,7 +94,7 @@
         const div = document.createElement('div');
         div.className = 'package';
         div.innerHTML = `
-            <span>${p.uc} ${p.free ? '<span class="free-tag">مجاناً لمرة واحدة</span>' : ''}</span>
+            <span>${p.uc} ${p.free ? '<span class="free-tag">مجاناً لمرة واحدة هدية الموقع ثم قم بتجميع النقاط</span>' : ''}</span>
             <span class="price">${p.price}</span>
         `;
         div.onclick = () => selectPkg(div, p.free);
